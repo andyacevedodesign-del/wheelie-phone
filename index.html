@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wheelie Phone — GSAP Phone Carousel Builder</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
+  <link rel="stylesheet" href="builder.css">
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-mark">📱</span>
+      <span class="brand-name">Wheelie Phone</span>
+    </div>
+    <input id="project-name" class="project-name" type="text" spellcheck="false" aria-label="Project name">
+    <div class="topbar-actions">
+      <button id="btn-import" class="btn ghost" title="Load a saved .json project">Import</button>
+      <button id="btn-save-json" class="btn ghost" title="Download the project as .json">Save</button>
+      <button id="btn-reset" class="btn ghost" title="Reset to the demo project">Reset demo</button>
+      <button id="btn-preview" class="btn" title="Full-screen presentation of the live carousel (Esc to exit)">▶ Preview</button>
+      <button id="btn-export" class="btn primary">Export code</button>
+    </div>
+    <input id="import-file" type="file" accept="application/json" hidden>
+  </header>
+
+  <main id="layout">
+    <aside id="left-panel">
+      <section class="panel-section">
+        <h2 class="panel-title">Screens</h2>
+        <p class="panel-note small muted">Each screen is one phone on the wheel. Click one to spin it to the front.</p>
+        <div id="phone-list"></div>
+        <button id="btn-add-phone" class="btn subtle full">+ Add screen</button>
+      </section>
+      <section class="panel-section">
+        <h2 class="panel-title">Messages <span id="messages-phone-label" class="muted"></span></h2>
+        <div id="message-list"></div>
+        <div class="add-block-row">
+          <span class="muted small">Add:</span>
+          <button class="chip" data-add-message="message">Message</button>
+          <button class="chip" data-add-message="system">System notice</button>
+          <button class="chip" data-add-message="divider">Day divider</button>
+        </div>
+      </section>
+    </aside>
+
+    <section id="stage">
+      <div id="stage-toolbar">
+        <div class="toolbar-group">
+          <label class="small muted" for="stage-width">Canvas</label>
+          <select id="stage-width">
+            <option value="100%">Fluid</option>
+            <option value="1280px">Desktop</option>
+            <option value="768px">Tablet</option>
+            <option value="390px">Mobile</option>
+          </select>
+        </div>
+        <div class="toolbar-group">
+          <label class="small muted" for="stage-bg-preset">Page bg</label>
+          <select id="stage-bg-preset">
+            <option value="#101014">Dark</option>
+            <option value="#ffffff">White</option>
+            <option value="#f8f8f8">Light gray</option>
+            <option value="#f4ede4">Slack cream</option>
+            <option value="#4a154b">Slack aubergine</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <input id="stage-bg" type="color" value="#101014" title="Custom page background">
+        </div>
+        <div class="toolbar-spacer"></div>
+        <button id="btn-spin-prev" class="btn subtle" title="Spin to the previous phone">←</button>
+        <button id="btn-spin-next" class="btn subtle" title="Spin to the next phone">→</button>
+        <label class="toolbar-toggle" title="Preview only — exports always keep the animation">
+          <input id="toggle-anims" type="checkbox" checked>
+          <span class="small">Animations</span>
+        </label>
+        <button id="btn-replay" class="btn subtle" title="Replay the entrance">↺ Replay</button>
+      </div>
+      <div id="canvas-wrap">
+        <iframe id="preview" title="Live preview"></iframe>
+      </div>
+      <button id="preview-exit" title="Exit preview (Esc)">✕ Exit preview</button>
+    </section>
+
+    <aside id="right-panel">
+      <div id="inspector"></div>
+    </aside>
+  </main>
+
+  <div id="export-modal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="export-title">
+      <div class="modal-head">
+        <h2 id="export-title">Export code</h2>
+        <button id="export-close" class="btn ghost" aria-label="Close">✕</button>
+      </div>
+      <p class="muted small" id="export-plugins-note"></p>
+      <div class="modal-tabs" id="export-tabs">
+        <button class="modal-tab active" data-export-tab="embed">Embed snippet</button>
+        <button class="modal-tab" data-export-tab="standalone">Standalone HTML</button>
+        <button class="modal-tab" data-export-tab="html">HTML</button>
+        <button class="modal-tab" data-export-tab="css">CSS</button>
+        <button class="modal-tab" data-export-tab="js">JS</button>
+      </div>
+      <p class="muted small" id="export-hint"></p>
+      <pre id="export-code" tabindex="0"><code></code></pre>
+      <div class="modal-actions">
+        <button id="export-copy" class="btn primary">Copy to clipboard</button>
+        <button id="export-download" class="btn">Download file</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
