@@ -4,7 +4,7 @@ import { store, makePhone, makeMessage, uid } from './state.js';
 
 export const selection = { phoneId: null, messageId: null };
 
-const openGroups = new Set(['group-message', 'group-screen', 'group-wheel']);
+const openGroups = new Set(['group-message', 'group-screen', 'group-wheel', 'group-offstage']);
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -315,8 +315,20 @@ function screenGroup() {
   const cta = (key) => objAcc(s.cta, key);
   const composer = (key) => objAcc(s.composer, key);
 
+  const offMode = store.get().carousel.offstage.mode === 'image';
+  const still = (key) => objAcc(phone.offstage, key);
+
   return group('group-screen', `Screen · ${phone.label}`, [
     textField('Screen name (builder + aria label)', objAcc(phone, 'label', 'structure')),
+    el('h4', { class: 'sub-head', text: 'Off-stage card' }),
+    imageField(offMode ? 'Image shown when this phone spins away' : 'Image for when off-stage cards are on', still('src')),
+    offMode ? textField('Alt text', still('alt'), { placeholder: phone.label }) : null,
+    offMode ? row([
+      numberField('Nudge Y (px)', still('y'), { min: -400, max: 400, step: 2 }),
+      rangeField('Size', still('scale'), { min: 0.3, max: 2, step: 0.02, unit: '×' }),
+    ]) : null,
+    !offMode ? el('p', { class: 'hint', text: 'Turn on Off-stage cards below to use it.' }) : null,
+    el('h4', { class: 'sub-head', text: 'Screen' }),
     row([
       selectField('Theme', acc('theme'), [['light', 'Light'], ['dark', 'Dark']]),
       colorField('Screen bg', acc('bg')),
@@ -401,6 +413,28 @@ function wheelGroup() {
   ]);
 }
 
+function offstageGroup() {
+  const off = store.get().carousel.offstage;
+  const acc = (key) => objAcc(off, key, 'structure');
+  return group('group-offstage', 'Off-stage cards', [
+    selectField('Phones that aren\u2019t out front show as', acc('mode'), [
+      ['phone', 'The phone, all the way round'],
+      ['image', 'An image card that cross-fades'],
+    ]),
+    off.mode === 'image' ? row([
+      numberField('Card width (px)', acc('width'), { min: 40, max: 600, step: 5 }),
+      numberField('Aspect (h \u00f7 w)', acc('aspect'), { min: 0.4, max: 2.5, step: 0.05 }),
+    ]) : null,
+    off.mode === 'image' ? row([
+      numberField('Corner radius', acc('radius'), { min: 0, max: 80 }),
+      checkField('Card shadow', acc('shadow')),
+    ]) : null,
+    off.mode === 'image' ? rangeField('Card holds until', objAcc(off, 'from'), { min: 0, max: 0.9, step: 0.01 }) : null,
+    off.mode === 'image' ? rangeField('Phone fully back by', objAcc(off, 'to'), { min: 0.1, max: 1, step: 0.01 }) : null,
+    off.mode === 'image' ? el('p', { class: 'hint', text: 'Both are front-ness: 1 is dead centre, 0 is the far side of the wheel. Each screen sets its own image in the Screen section.' }) : null,
+  ]);
+}
+
 function webglGroup() {
   const w = store.get().stage.webgl;
   const acc = (key) => objAcc(w, key);
@@ -472,7 +506,7 @@ function themeGroup() {
 function renderInspector() {
   const host = $('#inspector');
   host.innerHTML = '';
-  const groups = [messageGroup(), screenGroup(), wheelGroup(), phoneFrameGroup(), stageGroup(), webglGroup(), themeGroup()];
+  const groups = [messageGroup(), screenGroup(), wheelGroup(), offstageGroup(), phoneFrameGroup(), stageGroup(), webglGroup(), themeGroup()];
   for (const g of groups) if (g) host.appendChild(g);
 }
 

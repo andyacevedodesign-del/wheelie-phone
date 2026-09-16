@@ -23,10 +23,25 @@ export function makeMessage(kind = 'message') {
   }
 }
 
+// A stand-in for the off-stage card until a real photo is dropped in.
+function stillPlaceholder(label, from, to) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">'
+    + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+    + `<stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs>`
+    + '<rect width="300" height="300" fill="url(#g)"/>'
+    + `<text x="150" y="142" font-family="Helvetica,Arial,sans-serif" font-size="30" font-weight="700" fill="#fff" text-anchor="middle" opacity=".9">${label}</text>`
+    + '<text x="150" y="178" font-family="Helvetica,Arial,sans-serif" font-size="19" fill="#fff" text-anchor="middle" opacity=".65">Drop a photo here</text>'
+    + '</svg>';
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
 export function makePhone(label = 'New screen') {
   return {
     id: uid('p'),
     label,
+    // What this phone becomes when it isn't the one out front — only used
+    // when the wheel's off-stage mode is set to image cards.
+    offstage: { src: stillPlaceholder(label, '#8a20d8', '#ff9ad5'), alt: '', y: 0, scale: 1 },
     screen: {
       theme: 'light',
       bg: '#ffffff',
@@ -51,6 +66,7 @@ function demoPhones() {
     {
       id: uid('p'),
       label: 'Retail ops',
+      offstage: { src: stillPlaceholder('Retail ops', '#d8446b', '#ffb199'), alt: '', y: 26, scale: 0.88 },
       screen: {
         theme: 'light',
         bg: '#ffffff',
@@ -81,6 +97,7 @@ function demoPhones() {
     {
       id: uid('p'),
       label: 'Frontline support',
+      offstage: { src: stillPlaceholder('Frontline support', '#7a2fd8', '#c98bff'), alt: '', y: -18, scale: 1 },
       screen: {
         theme: 'light',
         bg: '#ffffff',
@@ -107,6 +124,7 @@ function demoPhones() {
     {
       id: uid('p'),
       label: 'Patient channel',
+      offstage: { src: stillPlaceholder('Patient channel', '#1f8f6a', '#9be2b6'), alt: '', y: 34, scale: 0.94 },
       screen: {
         theme: 'light',
         bg: '#ffffff',
@@ -210,6 +228,17 @@ export function defaultProject() {
       autoSpin: false,
       autoSpinSpeed: 8,
       autoResume: 4,
+      // Off-stage phones can stay phones, or cross-fade into a flat image
+      // card — the flanking photos in a Slack campaign shot.
+      offstage: {
+        mode: 'phone', // phone | image
+        width: 170,
+        aspect: 1,
+        radius: 14,
+        shadow: true,
+        from: 0.45, // below this front-ness the card is fully shown
+        to: 0.92,   // above it the phone is fully shown
+      },
     },
     // The shared phone frame.
     phone: {
@@ -239,12 +268,14 @@ function normalize(project) {
   project.stage = { ...base.stage, ...(project.stage || {}) };
   project.stage.webgl = { ...base.stage.webgl, ...(project.stage.webgl || {}) };
   project.carousel = { ...base.carousel, ...(project.carousel || {}) };
+  project.carousel.offstage = { ...base.carousel.offstage, ...(project.carousel.offstage || {}) };
   project.phone = { ...base.phone, ...(project.phone || {}) };
   if (!Array.isArray(project.phones) || !project.phones.length) project.phones = base.phones;
   const blankPhone = makePhone();
   for (const p of project.phones) {
     p.id ??= uid('p');
     p.label ??= 'Screen';
+    p.offstage = { ...blankPhone.offstage, ...(p.offstage || {}) };
     p.screen = { ...blankPhone.screen, ...(p.screen || {}) };
     p.screen.header = { ...blankPhone.screen.header, ...(p.screen.header || {}) };
     p.screen.cta = { ...blankPhone.screen.cta, ...(p.screen.cta || {}) };

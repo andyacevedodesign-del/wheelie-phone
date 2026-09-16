@@ -200,11 +200,32 @@ function screenHtml(phone, project) {
 }
 
 function phoneHtml(phone, index, project) {
+  const off = project.carousel.offstage;
+  const src = String(phone.offstage?.src || '').trim();
+  // A phone only gets a card if the wheel is in image mode and it has one;
+  // otherwise it stays a phone the whole way round.
+  const still = off.mode === 'image' && src
+    ? `<div class="wp-still" style="${stillStyle(phone, off)}">
+          <img src="${esc(src)}" alt="${esc(phone.offstage.alt || phone.label)}" loading="lazy" draggable="false">
+        </div>`
+    : '';
+
   return `<article class="wp-phone" data-wp-index="${index}" aria-roledescription="slide" aria-label="${esc(phone.label)}">
       <div class="wp-phone-inner">
-        <div class="wp-device">${screenHtml(phone, project)}</div>
+        <div class="wp-face">
+          <div class="wp-device">${screenHtml(phone, project)}</div>
+        </div>
+        ${still}
       </div>
     </article>`;
+}
+
+// Per-card size and drift, so a row of cards doesn't read as a tidy grid.
+function stillStyle(phone, off) {
+  const w = Math.round(num(off.width, 150) * num(phone.offstage.scale, 1));
+  const h = Math.round(w * num(off.aspect, 1));
+  const y = num(phone.offstage.y, 0);
+  return `width:${w}px;height:${h}px;margin:${Math.round(-h / 2 + y)}px 0 0 ${Math.round(-w / 2)}px;border-radius:${num(off.radius, 14)}px`;
 }
 
 export function componentHtml(project, opts = {}) {
@@ -332,7 +353,20 @@ ${S} .wp-phone {
   transform-style: preserve-3d;
   will-change: transform, opacity;
 }
-${S} .wp-phone-inner { width: 100%; height: 100%; }
+${S} .wp-phone-inner { position: relative; width: 100%; height: 100%; }
+${S} .wp-face { width: 100%; height: 100%; }
+
+/* The off-stage card: a flat still that cross-fades with the phone. */
+${S} .wp-still {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  overflow: hidden;
+  background: ${rgba(t.accent, 0.25)};
+  ${c.offstage.shadow ? `box-shadow: 0 18px 40px -12px ${rgba(d.shadowColor, 0.45)};` : ''}
+  pointer-events: none;
+}
+${S} .wp-still img { display: block; width: 100%; height: 100%; object-fit: cover; }
 ${S} .wp-phone.is-front { cursor: default; }
 ${S} .wp-phone:not(.is-front) { cursor: ${c.clickToFront ? 'pointer' : 'default'}; }
 
@@ -683,6 +717,9 @@ export function componentJs(project, opts = {}) {
     autoResume: num(c.autoResume, 4),
     start: num(opts.activePhone, 0),
     preview: !!opts.preview,
+    offstage: c.offstage.mode === 'image'
+      ? { from: num(c.offstage.from, 0.45), to: num(c.offstage.to, 0.92) }
+      : null,
     three: THREE_CDN,
     gl: w.enabled
       ? {
@@ -740,6 +777,26 @@ export function componentJs(project, opts = {}) {
   };
   var placer = cssPlacer;
 
+  var faces = phones.map(function (el) {
+    return { device: el.querySelector('.wp-face'), still: el.querySelector('.wp-still') };
+  });
+
+  // Hand the phone over to its card as it leaves the front. The card stays
+  // crisp and un-dimmed — the depth cues move onto the phone face instead,
+  // so the element itself can keep full opacity.
+  function paintFaces(i, p) {
+    var f = faces[i];
+    if (!CFG.offstage || !f.still) return;
+    var k = (p.t - CFG.offstage.from) / Math.max(CFG.offstage.to - CFG.offstage.from, 0.001);
+    k = k < 0 ? 0 : k > 1 ? 1 : k;
+    k = k * k * (3 - 2 * k);                       // smoothstep
+    f.device.style.opacity = (k * p.opacity).toFixed(3);
+    f.still.style.opacity = (1 - k).toFixed(3);
+    if (CFG.maxBlur > 0) f.device.style.filter = p.blur > 0.05 ? 'blur(' + p.blur.toFixed(2) + 'px)' : 'none';
+    p.opacity = 1;                                 // the element itself stays solid
+    p.blur = 0;
+  }
+
   // ---- The one piece of maths everything shares -----------------------------
   function render() {
     placer.before && placer.before();
@@ -749,7 +806,7 @@ export function componentJs(project, opts = {}) {
       var cos = Math.cos(rad);
       var sin = Math.sin(rad);
       var t = (cos + 1) / 2;                   // 1 at the front, 0 at the back
-      placer.set(i, {
+      var p = {
         i: i,
         deg: deg,
         localDeg: i * step,
@@ -762,7 +819,9 @@ export function componentJs(project, opts = {}) {
         scale: CFG.minScale + (1 - CFG.minScale) * t,
         opacity: CFG.minOpacity + (1 - CFG.minOpacity) * t,
         blur: CFG.maxBlur * (1 - t),
-      });
+      };
+      paintFaces(i, p);
+      placer.set(i, p);
     }
     placer.after();
     spinVel = spinVel * 0.82 + (state.angle - lastAngle) * 0.18;

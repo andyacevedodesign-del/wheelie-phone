@@ -15,6 +15,12 @@ snippet you paste into any page.
 - **A wheel of phones** — every screen is a phone on a circle. Drag it, throw it,
   flick it with the wheel, arrow-key it, or click a phone at the side to spin it
   to the front. It snaps to the nearest phone when you let go.
+- **Off-stage cards (a toggle)** — phones that aren't out front can cross-fade
+  into a flat image card, so the wheel reads as one live phone flanked by
+  photos, then fade back into a phone as they spin forward. Each screen picks
+  its own image (URL or upload), with a size and a vertical nudge so a row of
+  cards doesn't line up like a grid. Off by default: leave it and every phone
+  stays a phone the whole way round.
 - **Real 3D, two engines**
   - **three.js** (default) — a genuine 3D scene: a perspective camera, a ring
     `Group`, and `CSS3DRenderer`, so the wheel has true perspective while every
@@ -121,6 +127,11 @@ to CSS 3D transforms and keeps working.
 | Mouse wheel / trackpad | Steps one phone |
 | ← → | Steps one phone (Home / End jump to the ends) |
 | Dots | Jump to a screen |
+
+With off-stage cards on, clicking a card spins that screen forward and the card
+becomes the phone on the way in — the cross-fade window is yours to set
+(*Card holds until* / *Phone fully back by*, both measured in front-ness, where
+1 is dead centre of the wheel).
 
 ## Project structure
 
