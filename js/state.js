@@ -204,6 +204,10 @@ export function defaultProject() {
       // css   — CSS 3D transforms; also the automatic fallback.
       renderer: 'three',
       radius: 330,
+      // The ring is a circle of `radius` stretched by these. Pull spreadX up
+      // to space the phones out sideways without pushing them further back.
+      spreadX: 1,
+      spreadZ: 1,
       perspective: 1800,
       facing: 'billboard', // billboard (phones face you) | ring (true cylinder)
       tilt: 0,

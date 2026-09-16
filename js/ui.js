@@ -379,6 +379,11 @@ function wheelGroup() {
       numberField('Perspective (px)', acc('perspective'), { min: 300, max: 5000, step: 50 }),
     ]),
     row([
+      rangeField('Spread across', acc('spreadX'), { min: 0.1, max: 3, step: 0.05, unit: '\u00d7' }),
+      rangeField('Spread back', acc('spreadZ'), { min: 0.1, max: 3, step: 0.05, unit: '\u00d7' }),
+    ]),
+    el('p', { class: 'hint', text: 'Radius sets the ring; these stretch it into an ellipse. Push \u201cSpread across\u201d up to pull the phones apart sideways without sending them further back \u2014 and \u201cSpread back\u201d down to flatten the whole wheel towards a lineup.' }),
+    row([
       numberField('Ring tilt (deg)', acc('tilt'), { min: -45, max: 45 }),
       numberField('Back phones drop (px)', acc('yArc'), { min: -200, max: 200, step: 2 }),
     ]),

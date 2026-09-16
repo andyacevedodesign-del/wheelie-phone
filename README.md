@@ -15,6 +15,10 @@ snippet you paste into any page.
 - **A wheel of phones** — every screen is a phone on a circle. Drag it, throw it,
   flick it with the wheel, arrow-key it, or click a phone at the side to spin it
   to the front. It snaps to the nearest phone when you let go.
+- **Spacing you control separately from depth** — radius sets the ring, then
+  *Spread across* and *Spread back* stretch it into an ellipse. Push the phones
+  apart sideways without sending them further away, or flatten the wheel toward
+  a flat lineup while keeping the gaps.
 - **Off-stage cards (a toggle)** — phones that aren't out front can hand over to
   a flat image card, so the wheel reads as one live phone flanked by photos,
   then become a phone again as they spin forward. Each screen picks its own
@@ -179,6 +183,11 @@ A phone is a stack, and each layer is doing a different job:
 | The card | A flat `<img>` that the phone hands over to off-stage |
 | The slab | A three.js prism in WebGL, behind the screens, giving the device thickness |
 | The backdrop | A full-stage GLSL shader — drifting mesh gradient or aurora |
+
+Both engines place phones from the same ellipse, point for point — the three.js
+scene positions each device per frame rather than spinning a group, because
+rotating a group would turn the ellipse instead of travelling along it. The
+camera moves with the depth spread so the front device keeps its size.
 
 The slab renders behind the whole CSS3D layer, which is what makes the rim show
 *around* each device rather than over it. The trade-off: it can't interleave

@@ -706,6 +706,8 @@ export function componentJs(project, opts = {}) {
   const cfg = {
     renderer: c.renderer === 'three' ? 'three' : 'css',
     radius: num(c.radius, 330),
+    spreadX: num(c.spreadX, 1),
+    spreadZ: num(c.spreadZ, 1),
     facing: c.facing === 'ring' ? 'ring' : 'billboard',
     perspective: num(c.perspective, 1800),
     tilt: num(c.tilt, 0),
@@ -892,13 +894,13 @@ export function componentJs(project, opts = {}) {
       var p = {
         i: i,
         deg: deg,
-        localDeg: i * step,
         t: t,
-        x: sin * CFG.radius,
+        x: sin * CFG.radius * CFG.spreadX,
         y: (1 - t) * CFG.yArc - t * CFG.frontLift,
-        z: cos * CFG.radius - CFG.radius,      // front phone sits at z = 0
-        lx: Math.sin(i * step * DEG) * CFG.radius,
-        lz: Math.cos(i * step * DEG) * CFG.radius,
+        // Front phone sits at z = 0; the depth spread decides how far the
+        // rest fall away behind it.
+        z: (cos * CFG.radius - CFG.radius) * CFG.spreadZ,
+        z3: cos * CFG.radius * CFG.spreadZ,    // the same point, three.js side
         scale: CFG.minScale + (1 - CFG.minScale) * t,
         opacity: CFG.minOpacity + (1 - CFG.minOpacity) * t,
         blur: CFG.maxBlur * (1 - t),
@@ -1213,7 +1215,7 @@ export function componentJs(project, opts = {}) {
       // Match the CSS perspective exactly so both engines frame the wheel alike.
       var fov = 2 * Math.atan((h / 2) / CFG.perspective) * 180 / Math.PI;
       var camera = new THREE.PerspectiveCamera(fov, w / h, 1, 20000);
-      camera.position.set(0, 0, CFG.perspective + CFG.radius);
+      camera.position.set(0, 0, CFG.perspective + CFG.radius * CFG.spreadZ);
 
       var scene = new THREE.Scene();
       var ring = new THREE.Group();
@@ -1362,15 +1364,17 @@ export function componentJs(project, opts = {}) {
 
       placer = {
         before: function () {
-          ring.rotation.y = state.angle * DEG;
+          // The group holds the tilt only — the travel is in the positions.
           if (gl3) gl3.ring.rotation.copy(ring.rotation);
         },
         set: function (i, p) {
           var o = objects[i];
-          o.position.set(p.lx, p.y, p.lz);
+          o.position.set(p.x, p.y, p.z3);
           o.scale.setScalar(p.scale);
+          // The group carries only the tilt now, so inverting it still leaves
+          // a billboarded phone square to the camera.
           if (CFG.facing === 'billboard') o.quaternion.copy(ring.quaternion).invert();
-          else o.rotation.set(0, p.localDeg * DEG, 0);
+          else o.rotation.set(0, p.deg * DEG, 0);
           if (p.iso) {
             isoEuler.set(p.iso.x * DEG, p.iso.y * DEG, p.iso.z * DEG);
             o.quaternion.multiply(isoQuat.setFromEuler(isoEuler));
