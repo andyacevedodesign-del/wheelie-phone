@@ -120,6 +120,36 @@ You're deploying the **builder tool** for your team to use. The carousels it
 produces don't need Vercel — they're exported as embeddable code you paste
 wherever the component lives.
 
+## Exporting a PNG
+
+**Export PNG** in the top bar saves the wheel exactly as the canvas has it right
+now — the screen that's out front, the spin, the tilt, the off-stage cards and
+the WebGL thickness — at 1×, 2× or 3×, with a **transparent background** by
+default (it drops the stage colour and the shader backdrop; the phones keep
+their own).
+
+It works by serialising the component into an `<svg><foreignObject>` and letting
+the browser rasterise it with its own engine, because the usual DOM-to-canvas
+libraries flatten 3D transforms and this whole thing is 3D transforms. Two
+things a DOM clone can't carry are patched in first: canvas pixels (the runtime
+re-draws each WebGL layer and hands back a still — the drawing buffer is cleared
+on composite, so it has to draw and read back without yielding), and anything
+loaded over the network, since an SVG rendered as an image won't fetch external
+resources. Images, CSS `url()`s and the Lato webfont are fetched and inlined as
+data URIs first.
+
+Measured against a live screenshot of the same scene, both engines come back at
+0.4–0.9 mean channel difference out of 255, with ~0.1% of pixels off by more
+than 40 — that's antialiasing, not layout.
+
+Two things to know:
+
+- **Hosted images need CORS.** Anything the browser can't read across origins is
+  left out of the PNG and the status line says how many — upload those images in
+  the inspector instead and they're inlined from the start.
+- **Lato is embedded best-effort.** If Google Fonts can't be reached the export
+  still saves, in the fallback sans.
+
 ## Using the export
 
 Click **Export code** in the top bar:

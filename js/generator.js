@@ -1174,14 +1174,18 @@ export function componentJs(project, opts = {}) {
 
     var t0 = (window.performance || Date).now();
     var still = CFG.gl.still || reduce;
+    function draw() {
+      var time = ((window.performance || Date).now() - t0) / 1000 * CFG.gl.speed;
+      gl.uniform1f(U.uTime, still ? 4.2 : time);
+      gl.uniform1f(U.uSpin, CFG.gl.reactive ? Math.max(-3, Math.min(3, spinVel * 0.08)) : 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    // The drawing buffer is cleared once the frame is composited, so a still
+    // has to draw and read back without yielding in between.
+    glCtx.wpDraw = draw;
     function frame() {
       if (!glCtx) return;
-      if (!glPaused) {
-        var time = ((window.performance || Date).now() - t0) / 1000 * CFG.gl.speed;
-        gl.uniform1f(U.uTime, still ? 4.2 : time);
-        gl.uniform1f(U.uSpin, CFG.gl.reactive ? Math.max(-3, Math.min(3, spinVel * 0.08)) : 0);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
-      }
+      if (!glPaused) draw();
       if (still) return;
       requestAnimationFrame(frame);
     }
@@ -1189,6 +1193,7 @@ export function componentJs(project, opts = {}) {
   }
 
   // ---- three.js placement: a real 3D scene, with live DOM screens -----------
+  var slabShot = null;
   var dynImport = null;
   try { dynImport = new Function('u', 'return import(u);'); } catch (e) { dynImport = null; }
 
@@ -1308,6 +1313,10 @@ export function componentJs(project, opts = {}) {
               return { holder: holder, phoneMesh: phoneMesh, mat: mat, cardMesh: cardMesh, cardMat: cardMat };
             });
             gl3 = { renderer: glRenderer, scene: glScene, ring: ringGL, slabs: slabs };
+            slabShot = function () {
+              glRenderer.render(glScene, camera);
+              return canvas.toDataURL('image/png');
+            };
           } catch (e) { gl3 = null; }
         }
       }
@@ -1445,6 +1454,17 @@ export function componentJs(project, opts = {}) {
     prev: function () { stopSpin(true); nudge(-1); },
     replay: function () { stopSpin(false); entrance(); startSpin(); },
     index: function () { return indexFromAngle(); },
+    // Pixels for the layers a DOM clone can't carry: canvases copy empty.
+    snapshot: function () {
+      var out = { backdrop: null, slabs: null };
+      try {
+        if (glCtx && glCtx.wpDraw) { glCtx.wpDraw(); out.backdrop = glCanvas.toDataURL('image/png'); }
+      } catch (e) { /* context lost or tainted */ }
+      try {
+        if (slabShot) out.slabs = slabShot();
+      } catch (e) { /* ditto */ }
+      return out;
+    },
   };
   root.wheeliePhone = api;
   window.WheeliePhone = api;

@@ -4,6 +4,7 @@ import { store } from './state.js';
 import { standaloneDoc, slugify } from './generator.js';
 import { initUI, rerender, refreshSummaries, selection } from './ui.js';
 import { initExport, downloadText } from './export.js';
+import { initPngExport } from './png.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -139,6 +140,7 @@ function boot() {
   initStage();
   initUI();
   initExport();
+  initPngExport();
 
   store.subscribe((_project, kind) => {
     if (kind === 'structure') rerender();

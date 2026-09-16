@@ -19,6 +19,7 @@
       <button id="btn-save-json" class="btn ghost" title="Download the project as .json">Save</button>
       <button id="btn-reset" class="btn ghost" title="Reset to the demo project">Reset demo</button>
       <button id="btn-preview" class="btn" title="Full-screen presentation of the live carousel (Esc to exit)">▶ Preview</button>
+      <button id="btn-png" class="btn" title="Save the current view as a PNG">Export PNG</button>
       <button id="btn-export" class="btn primary">Export code</button>
     </div>
     <input id="import-file" type="file" accept="application/json" hidden>
@@ -107,6 +108,33 @@
       <div class="modal-actions">
         <button id="export-copy" class="btn primary">Copy to clipboard</button>
         <button id="export-download" class="btn">Download file</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="png-modal" class="modal-backdrop" hidden>
+    <div class="modal" style="width: min(460px, 100%)" role="dialog" aria-modal="true" aria-labelledby="png-title">
+      <div class="modal-head">
+        <h2 id="png-title">Export PNG</h2>
+        <button id="png-close" class="btn ghost" aria-label="Close">✕</button>
+      </div>
+      <p class="muted small">Saves the wheel exactly as the canvas has it right now — the screen that's out front, the spin, the tilt and the WebGL thickness.</p>
+      <div class="field">
+        <label for="png-scale">Resolution</label>
+        <select id="png-scale">
+          <option value="1">1× — as it sits on screen</option>
+          <option value="2" selected>2× — retina</option>
+          <option value="3">3× — print / big crops</option>
+        </select>
+      </div>
+      <div class="field-inline">
+        <input id="png-transparent" type="checkbox" checked>
+        <label for="png-transparent">Transparent background (drops the stage colour and the shader backdrop)</label>
+      </div>
+      <p class="muted small">Output: <span id="png-size">—</span></p>
+      <p class="small" id="png-status"></p>
+      <div class="modal-actions">
+        <button id="png-download" class="btn primary">Download PNG</button>
       </div>
     </div>
   </div>
