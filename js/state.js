@@ -232,12 +232,33 @@ export function defaultProject() {
       // card — the flanking photos in a Slack campaign shot.
       offstage: {
         mode: 'phone', // phone | image
+        style: 'fade', // fade | morph (phone shrinks into the card) | flip | swap
         width: 170,
         aspect: 1,
         radius: 14,
         shadow: true,
         from: 0.45, // below this front-ness the card is fully shown
         to: 0.92,   // above it the phone is fully shown
+      },
+      // Isometric tilt: the devices off to the sides turn away from the
+      // viewer, mirrored left and right, ramping in as they leave the front.
+      iso: {
+        enabled: false,
+        x: 6,      // pitch, degrees
+        y: 26,     // turn, degrees — the isometric one
+        z: 0,      // roll, degrees
+        mirror: true, // the left side turns the opposite way
+        front: 0,  // how much of the tilt the front device keeps (0..1)
+      },
+      // Real thickness, rendered in WebGL behind the DOM screens.
+      // Needs the three.js engine — it shares that scene's camera.
+      extrude: {
+        enabled: false,
+        depth: 26,
+        frontDepth: 0.3, // the front device's share of the depth (0..1)
+        color: '#e9e4f0',
+        edge: '#3b1259',
+        opacity: 1,
       },
     },
     // The shared phone frame.
@@ -269,6 +290,8 @@ function normalize(project) {
   project.stage.webgl = { ...base.stage.webgl, ...(project.stage.webgl || {}) };
   project.carousel = { ...base.carousel, ...(project.carousel || {}) };
   project.carousel.offstage = { ...base.carousel.offstage, ...(project.carousel.offstage || {}) };
+  project.carousel.iso = { ...base.carousel.iso, ...(project.carousel.iso || {}) };
+  project.carousel.extrude = { ...base.carousel.extrude, ...(project.carousel.extrude || {}) };
   project.phone = { ...base.phone, ...(project.phone || {}) };
   if (!Array.isArray(project.phones) || !project.phones.length) project.phones = base.phones;
   const blankPhone = makePhone();

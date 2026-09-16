@@ -421,6 +421,12 @@ function offstageGroup() {
       ['phone', 'The phone, all the way round'],
       ['image', 'An image card that cross-fades'],
     ]),
+    off.mode === 'image' ? selectField('Transition', acc('style'), [
+      ['fade', 'Cross-fade'],
+      ['morph', 'Morph \u2014 the phone shrinks into the card'],
+      ['flip', 'Flip \u2014 two sides of one card'],
+      ['swap', 'Hard swap'],
+    ]) : null,
     off.mode === 'image' ? row([
       numberField('Card width (px)', acc('width'), { min: 40, max: 600, step: 5 }),
       numberField('Aspect (h \u00f7 w)', acc('aspect'), { min: 0.4, max: 2.5, step: 0.05 }),
@@ -432,6 +438,39 @@ function offstageGroup() {
     off.mode === 'image' ? rangeField('Card holds until', objAcc(off, 'from'), { min: 0, max: 0.9, step: 0.01 }) : null,
     off.mode === 'image' ? rangeField('Phone fully back by', objAcc(off, 'to'), { min: 0.1, max: 1, step: 0.01 }) : null,
     off.mode === 'image' ? el('p', { class: 'hint', text: 'Both are front-ness: 1 is dead centre, 0 is the far side of the wheel. Each screen sets its own image in the Screen section.' }) : null,
+  ]);
+}
+
+function tiltGroup() {
+  const c = store.get().carousel;
+  const iso = (key) => objAcc(c.iso, key, 'structure');
+  const ex = (key) => objAcc(c.extrude, key, 'structure');
+  const isThree = c.renderer === 'three';
+  return group('group-iso', 'Tilt & extrusion', [
+    checkField('Isometric tilt on the devices off to the sides', iso('enabled')),
+    c.iso.enabled ? row([
+      numberField('Turn Y (deg)', iso('y'), { min: -80, max: 80 }),
+      numberField('Pitch X (deg)', iso('x'), { min: -60, max: 60 }),
+    ]) : null,
+    c.iso.enabled ? row([
+      numberField('Roll Z (deg)', iso('z'), { min: -45, max: 45 }),
+      rangeField('Front keeps', iso('front'), { min: 0, max: 1, step: 0.05, unit: '\u00d7' }),
+    ]) : null,
+    c.iso.enabled ? checkField('Mirror the left side', iso('mirror')) : null,
+    c.iso.enabled ? el('p', { class: 'hint', text: 'The tilt ramps in as a device leaves the front. \u201cFront keeps\u201d is how much of it the centre device holds on to \u2014 0 keeps it flat and readable.' }) : null,
+    el('h4', { class: 'sub-head', text: 'Extrusion (WebGL)' }),
+    isThree ? checkField('Give the devices real thickness', ex('enabled')) : null,
+    isThree && c.extrude.enabled ? row([
+      numberField('Depth (px)', ex('depth'), { min: 1, max: 200 }),
+      rangeField('Front share', ex('frontDepth'), { min: 0, max: 1, step: 0.05, unit: '\u00d7' }),
+    ]) : null,
+    isThree && c.extrude.enabled ? row([
+      colorField('Body', ex('color')),
+      colorField('Shadow tint', ex('edge')),
+    ]) : null,
+    isThree && c.extrude.enabled ? rangeField('Opacity', ex('opacity'), { min: 0.1, max: 1, step: 0.05 }) : null,
+    isThree && c.extrude.enabled ? el('p', { class: 'hint', text: 'Slabs render in WebGL behind the screens and share the 3D scene\u2019s camera, so the thickness only shows where a device is turned \u2014 pair it with the tilt above.' }) : null,
+    !isThree ? el('p', { class: 'hint', text: 'Extrusion needs the three.js engine (Wheel \u2192 3D engine) \u2014 it shares that scene\u2019s camera.' }) : null,
   ]);
 }
 
@@ -506,7 +545,7 @@ function themeGroup() {
 function renderInspector() {
   const host = $('#inspector');
   host.innerHTML = '';
-  const groups = [messageGroup(), screenGroup(), wheelGroup(), offstageGroup(), phoneFrameGroup(), stageGroup(), webglGroup(), themeGroup()];
+  const groups = [messageGroup(), screenGroup(), wheelGroup(), offstageGroup(), tiltGroup(), phoneFrameGroup(), stageGroup(), webglGroup(), themeGroup()];
   for (const g of groups) if (g) host.appendChild(g);
 }
 

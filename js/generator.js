@@ -248,9 +248,14 @@ export function componentHtml(project, opts = {}) {
     ? '<canvas class="wp-gl" aria-hidden="true"></canvas>'
     : '';
 
+  const slabs = c.renderer === 'three' && c.extrude.enabled
+    ? '<canvas class="wp-slabs" aria-hidden="true"></canvas>'
+    : '';
+
   return `<div class="wheelie-phone${c.renderer === 'three' ? ' wp-three' : ''}" id="${id}">
   ${gl}
   <div class="wp-stage" tabindex="0" role="group" aria-roledescription="carousel" aria-label="${esc(project.name)}">
+    ${slabs}
     <div class="wp-ring">
 ${phones}
     </div>
@@ -340,7 +345,10 @@ ${S} .wp-ring {
 
 /* three.js drives the phones instead: CSS3DRenderer owns their transforms. */
 ${S}.wp-three .wp-ring { display: none; }
-${S} .wp-css3d { position: absolute; inset: 0; overflow: hidden; }
+${S} .wp-css3d { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+/* The extrusion renders behind the DOM screens, so the slab shows only as a
+   rim around each device — which is exactly what reads as thickness. */
+${S} .wp-slabs { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 ${S}.wp-three .wp-phone { top: auto; left: auto; margin: 0; }
 
 ${S} .wp-phone {
@@ -353,8 +361,8 @@ ${S} .wp-phone {
   transform-style: preserve-3d;
   will-change: transform, opacity;
 }
-${S} .wp-phone-inner { position: relative; width: 100%; height: 100%; }
-${S} .wp-face { width: 100%; height: 100%; }
+${S} .wp-phone-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+${S} .wp-face { width: 100%; height: 100%; transform-origin: 50% 50%; ${c.offstage.style === 'flip' ? 'backface-visibility: hidden;' : ''} }
 
 /* The off-stage card: a flat still that cross-fades with the phone. */
 ${S} .wp-still {
@@ -367,6 +375,7 @@ ${S} .wp-still {
   pointer-events: none;
 }
 ${S} .wp-still img { display: block; width: 100%; height: 100%; object-fit: cover; }
+${S} .wp-still { transform-origin: 50% 50%; ${c.offstage.style === 'flip' ? 'backface-visibility: hidden;' : ''} }
 ${S} .wp-phone.is-front { cursor: default; }
 ${S} .wp-phone:not(.is-front) { cursor: ${c.clickToFront ? 'pointer' : 'default'}; }
 
@@ -718,7 +727,41 @@ export function componentJs(project, opts = {}) {
     start: num(opts.activePhone, 0),
     preview: !!opts.preview,
     offstage: c.offstage.mode === 'image'
-      ? { from: num(c.offstage.from, 0.45), to: num(c.offstage.to, 0.92) }
+      ? {
+          from: num(c.offstage.from, 0.45),
+          to: num(c.offstage.to, 0.92),
+          style: c.offstage.style || 'fade',
+          // How far the phone has to shrink to land on the card, for morph.
+          shrink: +(num(c.offstage.width, 170) / Math.max(num(project.phone.width, 300), 1)).toFixed(4),
+        }
+      : null,
+    extrude: c.renderer === 'three' && c.extrude.enabled
+      ? {
+          depth: num(c.extrude.depth, 26),
+          frontDepth: num(c.extrude.frontDepth, 0.3),
+          color: c.extrude.color,
+          edge: c.extrude.edge,
+          opacity: num(c.extrude.opacity, 1),
+          // Pulled in from the phone frame and the cards so a slab can track
+          // whichever face is currently showing.
+          phoneW: num(project.phone.width, 300),
+          phoneH: Math.round(num(project.phone.width, 300) * num(project.phone.aspect, 2.06)),
+          phoneR: num(project.phone.radius, 46),
+          cardR: num(c.offstage.radius, 14),
+          cards: c.offstage.mode === 'image',
+          cardSizes: project.phones.map((p) => {
+            const w = num(c.offstage.width, 170) * num(p.offstage.scale, 1);
+            return {
+              w: Math.round(w),
+              h: Math.round(w * num(c.offstage.aspect, 1)),
+              y: num(p.offstage.y, 0),
+              on: !!String(p.offstage.src || '').trim(),
+            };
+          }),
+        }
+      : null,
+    iso: c.iso.enabled
+      ? { x: num(c.iso.x, 0), y: num(c.iso.y, 0), z: num(c.iso.z, 0), mirror: !!c.iso.mirror, front: num(c.iso.front, 0) }
       : null,
     three: THREE_CDN,
     gl: w.enabled
@@ -766,6 +809,9 @@ export function componentJs(project, opts = {}) {
       var el = phones[i];
       var tr = 'translate3d(' + p.x.toFixed(2) + 'px,' + p.y.toFixed(2) + 'px,' + p.z.toFixed(2) + 'px)';
       if (CFG.facing === 'ring') tr += ' rotateY(' + p.deg.toFixed(2) + 'deg)';
+      if (p.iso) {
+        tr += ' rotateX(' + p.iso.x.toFixed(2) + 'deg) rotateY(' + p.iso.y.toFixed(2) + 'deg) rotateZ(' + p.iso.z.toFixed(2) + 'deg)';
+      }
       tr += ' scale(' + p.scale.toFixed(4) + ')';
       el.style.transform = tr;
       el.style.opacity = p.opacity.toFixed(3);
@@ -790,11 +836,44 @@ export function componentJs(project, opts = {}) {
     var k = (p.t - CFG.offstage.from) / Math.max(CFG.offstage.to - CFG.offstage.from, 0.001);
     k = k < 0 ? 0 : k > 1 ? 1 : k;
     k = k * k * (3 - 2 * k);                       // smoothstep
-    f.device.style.opacity = (k * p.opacity).toFixed(3);
-    f.still.style.opacity = (1 - k).toFixed(3);
+    p.k = k;
+    var style = CFG.offstage.style;
+
+    if (style === 'morph') {
+      // The phone shrinks to the card's footprint on its way out, while the
+      // card comes up from that same footprint — so one becomes the other.
+      var shrink = CFG.offstage.shrink;
+      f.device.style.transform = 'scale(' + (shrink + (1 - shrink) * k).toFixed(4) + ')';
+      f.still.style.transform = 'scale(' + (1 + (1 / Math.max(shrink, 0.01) - 1) * k).toFixed(4) + ')';
+      f.device.style.opacity = (k * p.opacity).toFixed(3);
+      f.still.style.opacity = (1 - k).toFixed(3);
+    } else if (style === 'flip') {
+      // Two sides of one card: backface-visibility does the hiding.
+      f.device.style.transform = 'rotateY(' + ((1 - k) * 180).toFixed(2) + 'deg)';
+      f.still.style.transform = 'rotateY(' + (k * 180).toFixed(2) + 'deg)';
+      f.device.style.opacity = p.opacity.toFixed(3);
+      f.still.style.opacity = '1';
+    } else if (style === 'swap') {
+      var front = k > 0.5;
+      f.device.style.opacity = front ? p.opacity.toFixed(3) : '0';
+      f.still.style.opacity = front ? '0' : '1';
+    } else {
+      f.device.style.opacity = (k * p.opacity).toFixed(3);
+      f.still.style.opacity = (1 - k).toFixed(3);
+    }
+
     if (CFG.maxBlur > 0) f.device.style.filter = p.blur > 0.05 ? 'blur(' + p.blur.toFixed(2) + 'px)' : 'none';
     p.opacity = 1;                                 // the element itself stays solid
     p.blur = 0;
+  }
+
+  // Isometric tilt, mirrored either side of the front and ramped by depth.
+  function isoFor(p) {
+    if (!CFG.iso) return null;
+    var ramp = CFG.iso.front + (1 - CFG.iso.front) * (1 - p.t);
+    var side = Math.sin(p.deg * DEG) >= 0 ? 1 : -1;   // right of centre is +1
+    var m = CFG.iso.mirror ? side : 1;
+    return { x: CFG.iso.x * ramp, y: -CFG.iso.y * ramp * m, z: CFG.iso.z * ramp * m };
   }
 
   // ---- The one piece of maths everything shares -----------------------------
@@ -821,6 +900,7 @@ export function componentJs(project, opts = {}) {
         blur: CFG.maxBlur * (1 - t),
       };
       paintFaces(i, p);
+      p.iso = isoFor(p);
       placer.set(i, p);
     }
     placer.after();
@@ -1141,25 +1221,165 @@ export function componentJs(project, opts = {}) {
       cssRenderer.domElement.className = 'wp-css3d';
       stage.appendChild(cssRenderer.domElement);
 
+      var isoEuler = new THREE.Euler();
+      var isoQuat = new THREE.Quaternion();
       var objects = phones.map(function (el) {
         var o = new CSS3D.CSS3DObject(el);
         ring.add(o);
         return o;
       });
 
+      // ---- WebGL extrusion: one slab per phone, same camera as the CSS3D
+      // layer, so a tilted device shows real thickness down its side.
+      var gl3 = null;
+      if (CFG.extrude) {
+        var canvas = root.querySelector('.wp-slabs');
+        if (canvas) {
+          try {
+            var glRenderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            glRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            glRenderer.setSize(w, h);
+            glRenderer.setClearAlpha(0);
+
+            var glScene = new THREE.Scene();
+            glScene.add(new THREE.HemisphereLight(0xffffff, new THREE.Color(CFG.extrude.edge), 1.25));
+            var key = new THREE.DirectionalLight(0xffffff, 1.5);
+            key.position.set(-0.6, 0.9, 1);
+            glScene.add(key);
+
+            var ringGL = new THREE.Group();
+            glScene.add(ringGL);
+
+            // A rounded-rectangle prism, so the slab matches the device's
+            // silhouette exactly and no corner pokes out past the screen.
+            // Extruded one unit deep and scaled in Z, which stays exact
+            // because the side walls are straight.
+            function prism(pw, ph, r) {
+              var x = -pw / 2;
+              var y = -ph / 2;
+              var rr = Math.max(Math.min(r, Math.min(pw, ph) / 2 - 0.01), 0.01);
+              var sh = new THREE.Shape();
+              sh.moveTo(x + rr, y);
+              sh.lineTo(x + pw - rr, y);
+              sh.quadraticCurveTo(x + pw, y, x + pw, y + rr);
+              sh.lineTo(x + pw, y + ph - rr);
+              sh.quadraticCurveTo(x + pw, y + ph, x + pw - rr, y + ph);
+              sh.lineTo(x + rr, y + ph);
+              sh.quadraticCurveTo(x, y + ph, x, y + ph - rr);
+              sh.lineTo(x, y + rr);
+              sh.quadraticCurveTo(x, y, x + rr, y);
+              return new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false, curveSegments: 8 });
+            }
+
+            var blend = CFG.extrude.opacity < 1 || CFG.extrude.cards;
+            function slabMat() {
+              return new THREE.MeshStandardMaterial({
+                color: new THREE.Color(CFG.extrude.color),
+                roughness: 0.55,
+                metalness: 0.05,
+                transparent: blend,
+                opacity: CFG.extrude.opacity,
+                depthWrite: !blend,
+              });
+            }
+
+            var phoneGeo = prism(CFG.extrude.phoneW, CFG.extrude.phoneH, CFG.extrude.phoneR);
+            var slabs = phones.map(function (el, i) {
+              var holder = new THREE.Group();
+              var mat = slabMat();
+              var phoneMesh = new THREE.Mesh(phoneGeo, mat);
+              holder.add(phoneMesh);
+              var cardMesh = null;
+              var cardMat = null;
+              var cs = CFG.extrude.cards ? CFG.extrude.cardSizes[i] : null;
+              if (cs && cs.on) {
+                cardMat = slabMat();
+                cardMesh = new THREE.Mesh(prism(cs.w, cs.h, CFG.extrude.cardR), cardMat);
+                cardMesh.position.y = -cs.y;          // CSS nudges down, three is y-up
+                holder.add(cardMesh);
+              }
+              ringGL.add(holder);
+              return { holder: holder, phoneMesh: phoneMesh, mat: mat, cardMesh: cardMesh, cardMat: cardMat };
+            });
+            gl3 = { renderer: glRenderer, scene: glScene, ring: ringGL, slabs: slabs };
+          } catch (e) { gl3 = null; }
+        }
+      }
+
+      function placeSlab(i, p, o) {
+        if (!gl3) return;
+        var s = gl3.slabs[i];
+        var k = s.cardMesh ? (p.k == null ? 1 : p.k) : 1;
+        var style = CFG.offstage ? CFG.offstage.style : 'fade';
+        var depth = CFG.extrude.depth * (CFG.extrude.frontDepth + (1 - CFG.extrude.frontDepth) * (1 - p.t));
+
+        s.holder.position.copy(o.position);
+        s.holder.quaternion.copy(o.quaternion);
+        s.holder.scale.copy(o.scale);
+
+        var faceScale = 1;
+        var cardScale = 1;
+        var faceAlpha = 1;
+        var cardAlpha = 0;
+        if (s.cardMesh) {
+          if (style === 'morph') {
+            var sh = CFG.offstage.shrink;
+            faceScale = sh + (1 - sh) * k;
+            cardScale = 1 + (1 / Math.max(sh, 0.01) - 1) * k;
+            faceAlpha = k;
+            cardAlpha = 1 - k;
+          } else if (style === 'flip' || style === 'swap') {
+            // Hand over at the midpoint, where a flipping card is edge-on.
+            faceAlpha = k > 0.5 ? 1 : 0;
+            cardAlpha = k > 0.5 ? 0 : 1;
+            if (style === 'flip') {
+              s.phoneMesh.rotation.y = (1 - k) * Math.PI;
+              s.cardMesh.rotation.y = k * Math.PI;
+            }
+          } else {
+            faceAlpha = k;
+            cardAlpha = 1 - k;
+          }
+        } else {
+          faceAlpha = p.opacity;
+        }
+
+        s.phoneMesh.scale.set(faceScale, faceScale, depth);
+        s.phoneMesh.position.z = -depth;          // sits behind the screen
+        s.phoneMesh.visible = faceAlpha > 0.01;
+        s.mat.opacity = CFG.extrude.opacity * faceAlpha;
+        if (s.cardMesh) {
+          s.cardMesh.scale.set(cardScale, cardScale, depth);
+          s.cardMesh.position.z = -depth;
+          s.cardMesh.visible = cardAlpha > 0.01;
+          s.cardMat.opacity = CFG.extrude.opacity * cardAlpha;
+        }
+      }
+
       placer = {
-        before: function () { ring.rotation.y = state.angle * DEG; },
+        before: function () {
+          ring.rotation.y = state.angle * DEG;
+          if (gl3) gl3.ring.rotation.copy(ring.rotation);
+        },
         set: function (i, p) {
           var o = objects[i];
           o.position.set(p.lx, p.y, p.lz);
           o.scale.setScalar(p.scale);
           if (CFG.facing === 'billboard') o.quaternion.copy(ring.quaternion).invert();
           else o.rotation.set(0, p.localDeg * DEG, 0);
+          if (p.iso) {
+            isoEuler.set(p.iso.x * DEG, p.iso.y * DEG, p.iso.z * DEG);
+            o.quaternion.multiply(isoQuat.setFromEuler(isoEuler));
+          }
           var el = phones[i];
           el.style.opacity = p.opacity.toFixed(3);
           if (CFG.maxBlur > 0) el.style.filter = p.blur > 0.05 ? 'blur(' + p.blur.toFixed(2) + 'px)' : 'none';
+          placeSlab(i, p, o);
         },
-        after: function () { cssRenderer.render(scene, camera); },
+        after: function () {
+          cssRenderer.render(scene, camera);
+          if (gl3) gl3.renderer.render(gl3.scene, camera);
+        },
         resize: function () {
           var w2 = Math.max(stage.clientWidth, 1);
           var h2 = Math.max(stage.clientHeight, 1);
@@ -1167,6 +1387,7 @@ export function componentJs(project, opts = {}) {
           camera.aspect = w2 / h2;
           camera.updateProjectionMatrix();
           cssRenderer.setSize(w2, h2);
+          if (gl3) gl3.renderer.setSize(w2, h2);
         },
       };
       done();

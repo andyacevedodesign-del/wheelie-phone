@@ -15,12 +15,27 @@ snippet you paste into any page.
 - **A wheel of phones** — every screen is a phone on a circle. Drag it, throw it,
   flick it with the wheel, arrow-key it, or click a phone at the side to spin it
   to the front. It snaps to the nearest phone when you let go.
-- **Off-stage cards (a toggle)** — phones that aren't out front can cross-fade
-  into a flat image card, so the wheel reads as one live phone flanked by
-  photos, then fade back into a phone as they spin forward. Each screen picks
-  its own image (URL or upload), with a size and a vertical nudge so a row of
-  cards doesn't line up like a grid. Off by default: leave it and every phone
-  stays a phone the whole way round.
+- **Off-stage cards (a toggle)** — phones that aren't out front can hand over to
+  a flat image card, so the wheel reads as one live phone flanked by photos,
+  then become a phone again as they spin forward. Each screen picks its own
+  image (URL or upload), with a size and a vertical nudge so a row of cards
+  doesn't line up like a grid. Off by default: leave it and every phone stays a
+  phone the whole way round. Four ways to make the hand-over:
+  - **Cross-fade** — the two faces dissolve into each other.
+  - **Morph** — the phone shrinks to the card's footprint on its way out while
+    the card grows from it, so one *becomes* the other.
+  - **Flip** — two sides of one card, turned on Y.
+  - **Hard swap** — a clean cut at the midpoint.
+- **Isometric tilt** — the devices off to the sides turn away from the viewer,
+  mirrored left and right, ramping in as each one leaves the front. Turn, pitch
+  and roll are yours to set, and *Front keeps* decides how much of the tilt the
+  centre device holds on to (0 keeps the one you're meant to read flat on).
+- **WebGL extrusion** — real thickness. Each device gets a rounded-rectangle
+  prism extruded in three.js and rendered behind the DOM screens with the same
+  camera, so a tilted phone shows its side wall and the screen stays live text.
+  Depth ramps with distance from the front (the centre device can stay thin),
+  and the slab tracks whichever face is showing, card or phone. Needs the
+  three.js engine — it shares that scene's camera.
 - **Real 3D, two engines**
   - **three.js** (default) — a genuine 3D scene: a perspective camera, a ring
     `Group`, and `CSS3DRenderer`, so the wheel has true perspective while every
@@ -129,9 +144,10 @@ to CSS 3D transforms and keeps working.
 | Dots | Jump to a screen |
 
 With off-stage cards on, clicking a card spins that screen forward and the card
-becomes the phone on the way in — the cross-fade window is yours to set
-(*Card holds until* / *Phone fully back by*, both measured in front-ness, where
-1 is dead centre of the wheel).
+becomes the phone on the way in. The hand-over window is yours to set — *Card
+holds until* / *Phone fully back by*, both measured in front-ness, where 1 is
+dead centre of the wheel. Widen it (drop *Card holds until* toward 0) to stretch
+a morph across more of the spin; narrow it for a snappier swap.
 
 ## Project structure
 
@@ -148,6 +164,23 @@ vercel.json       Vercel static-deploy config
 
 The preview iframe runs the *exact* code the export produces, so the canvas is
 never lying to you.
+
+## Layers, front to back
+
+A phone is a stack, and each layer is doing a different job:
+
+| Layer | What it is |
+|---|---|
+| The screen | Live DOM — real text, real markup, selectable and readable by a screen reader |
+| The card | A flat `<img>` that the phone hands over to off-stage |
+| The slab | A three.js prism in WebGL, behind the screens, giving the device thickness |
+| The backdrop | A full-stage GLSL shader — drifting mesh gradient or aurora |
+
+The slab renders behind the whole CSS3D layer, which is what makes the rim show
+*around* each device rather than over it. The trade-off: it can't interleave
+with a device that sits in front of it in the scene, so if you push the radius
+in far enough for devices to overlap, a slab can read as behind a neighbour it
+should be in front of. Widen the radius or thin the depth if you see it.
 
 ## The runtime, in one paragraph
 
