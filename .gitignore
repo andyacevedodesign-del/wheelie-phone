@@ -1,0 +1,6 @@
+# Vercel CLI
+.vercel
+
+# OS / editor noise
+.DS_Store
+Thumbs.db

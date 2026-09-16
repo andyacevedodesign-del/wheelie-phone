@@ -60,15 +60,36 @@ keep work across sessions and share setups with teammates.
 
 ## Deploying the builder to Vercel
 
-The repo is Vercel-ready (see `vercel.json`). Either:
+It's a static site — no build step, no `package.json`, nothing to install. The
+repo ships a `vercel.json` that turns framework detection off, serves the repo
+root, and sends `must-revalidate` on HTML/CSS/JS so a new deploy is never served
+from a stale cache (the filenames aren't content-hashed).
 
-1. **Git import** — push to GitHub, then in Vercel choose *Add New → Project*,
-   import the repo, and deploy. Framework preset: **Other**, no build command,
-   output directory: root.
-2. **CLI** — `npm i -g vercel`, then `vercel` (preview) or `vercel --prod`.
+**Git import (recommended — you get a deploy on every push, plus preview URLs):**
 
-You're deploying the **builder tool**. The carousels it produces don't need
-Vercel — they're exported as embeddable code.
+1. [vercel.com/new](https://vercel.com/new) → *Import Git Repository* →
+   `andyacevedodesign-del/wheelie-phone`.
+2. Leave everything alone. Framework Preset: **Other**. Build Command, Output
+   Directory and Install Command all stay empty — `vercel.json` covers them.
+3. **Deploy.**
+
+Vercel builds the repo's default branch as production and gives every other
+branch a preview URL.
+
+**Vercel CLI, from the repo root:**
+
+```bash
+npm i -g vercel
+vercel          # preview deploy
+vercel --prod   # production
+```
+
+Answer *no* to "Want to modify these settings?" — the defaults plus
+`vercel.json` are already right.
+
+You're deploying the **builder tool** for your team to use. The carousels it
+produces don't need Vercel — they're exported as embeddable code you paste
+wherever the component lives.
 
 ## Using the export
 
