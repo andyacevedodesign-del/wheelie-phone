@@ -23,6 +23,9 @@ const el = (tag, attrs = {}, children = []) => {
 
 // Accessors — every field reads and writes through one of these.
 const pathAcc = (path) => ({ get: () => store.getPath(path), set: (v) => store.setPath(path, v) });
+// For controls that decide which *other* fields exist: 'structure' rebuilds
+// the inspector, so the fields they gate appear straight away.
+const gateAcc = (obj, key) => objAcc(obj, key, 'structure');
 const objAcc = (obj, key, kind = 'prop') => ({
   get: () => obj[key],
   set: (v) => { obj[key] = v; store.emit(kind); },
@@ -314,6 +317,7 @@ function screenGroup() {
   const head = (key) => objAcc(s.header, key);
   const cta = (key) => objAcc(s.cta, key);
   const composer = (key) => objAcc(s.composer, key);
+  const gateIn = gateAcc;
 
   const offMode = store.get().carousel.offstage.mode === 'image';
   const still = (key) => objAcc(phone.offstage, key);
@@ -347,14 +351,14 @@ function screenGroup() {
     textField('Meta line', head('meta'), { placeholder: '832 members • 4 tabs' }),
     row([checkField('Back chevron', head('back')), checkField('Huddle button', head('headphones'))]),
     el('h4', { class: 'sub-head', text: 'Bottom bar' }),
-    checkField('Call-to-action button (replaces the composer)', cta('enabled')),
+    checkField('Call-to-action button (replaces the composer)', gateIn(s.cta, 'enabled')),
     s.cta.enabled ? textField('Button label', cta('label')) : null,
     s.cta.enabled ? row([colorField('Button color', cta('color')), colorField('Label color', cta('textColor'))]) : null,
     s.cta.enabled ? row([
       selectField('Button icon', cta('icon'), [['play', 'Play'], ['plus', 'Plus'], ['thread', 'Thread'], ['none', 'None']]),
       checkField('Compose circle', cta('compose')),
     ]) : null,
-    !s.cta.enabled ? checkField('Show composer', composer('enabled')) : null,
+    !s.cta.enabled ? checkField('Show composer', gateIn(s.composer, 'enabled')) : null,
     !s.cta.enabled && s.composer.enabled ? textField('Composer placeholder', composer('text')) : null,
     !s.cta.enabled && s.composer.enabled ? checkField('Mic icon', composer('mic')) : null,
   ], { open: true });
@@ -363,6 +367,7 @@ function screenGroup() {
 function wheelGroup() {
   const c = store.get().carousel;
   const acc = (key) => objAcc(c, key);
+  const gate = (key) => gateAcc(c, key);
   return group('group-wheel', 'Wheel', [
     selectField('3D engine', acc('renderer'), [
       ['three', 'three.js scene (WebGL camera + CSS3D)'],
@@ -405,7 +410,7 @@ function wheelGroup() {
       selectField('Entrance', acc('entrance'), [['spin', 'Spin in'], ['rise', 'Rise + pop'], ['fade', 'Fade'], ['none', 'None']]),
       rangeField('Entrance time', acc('entranceDuration'), { min: 0.2, max: 4, step: 0.1, unit: 's' }),
     ]),
-    checkField('Spin on its own until someone grabs it', acc('autoSpin')),
+    checkField('Spin on its own until someone grabs it', gate('autoSpin')),
     c.autoSpin ? row([
       numberField('Speed (deg/sec)', acc('autoSpinSpeed'), { min: 1, max: 90 }),
       numberField('Resume after (s)', acc('autoResume'), { min: 0, max: 60 }),
@@ -477,8 +482,9 @@ function tiltGroup() {
 function webglGroup() {
   const w = store.get().stage.webgl;
   const acc = (key) => objAcc(w, key);
+  const gate = (key) => gateAcc(w, key);
   return group('group-webgl', 'WebGL backdrop', [
-    checkField('Animated shader backdrop', acc('enabled')),
+    checkField('Animated shader backdrop', gate('enabled')),
     w.enabled ? selectField('Preset', acc('preset'), [['mesh', 'Mesh gradient'], ['aurora', 'Aurora bands']]) : null,
     w.enabled ? colorField('Base', acc('base')) : null,
     w.enabled ? row([colorField('Blob 1', acc('c1')), colorField('Blob 2', acc('c2'))]) : null,
@@ -494,6 +500,7 @@ function webglGroup() {
 function phoneFrameGroup() {
   const d = store.get().phone;
   const acc = (key) => objAcc(d, key);
+  const gate = (key) => gateAcc(d, key);
   return group('group-frame', 'Phone frame', [
     row([
       numberField('Width (px)', acc('width'), { min: 120, max: 600, step: 5 }),
@@ -506,7 +513,7 @@ function phoneFrameGroup() {
     colorField('Bezel color', acc('frameColor')),
     row([checkField('Dynamic island', acc('island')), checkField('Status bar', acc('statusBar'))]),
     textField('Status bar time', acc('time')),
-    checkField('Drop shadow', acc('shadow')),
+    checkField('Drop shadow', gate('shadow')),
     d.shadow ? colorField('Shadow color', acc('shadowColor')) : null,
     d.shadow ? rangeField('Shadow strength', acc('shadowOpacity'), { min: 0, max: 1, step: 0.05 }) : null,
   ]);
@@ -515,8 +522,20 @@ function phoneFrameGroup() {
 function stageGroup() {
   const st = store.get().stage;
   const acc = (key) => objAcc(st, key);
+  const gate = (key) => gateAcc(st, key);
   return group('group-stage', 'Stage', [
-    selectField('Background', acc('bgType'), [['gradient', 'Gradient'], ['color', 'Solid color'], ['image', 'Image']]),
+    selectField('Background', gate('bgType'), [
+      ['gradient', 'Gradient'],
+      ['color', 'Solid color'],
+      ['image', 'Image'],
+      ['none', 'None \u2014 transparent'],
+    ]),
+    st.bgType === 'none' && store.get().stage.webgl.enabled
+      ? el('p', { class: 'hint', text: 'The WebGL backdrop is a separate layer and still paints behind the wheel \u2014 turn it off below for a fully transparent component.' })
+      : null,
+    st.bgType === 'none' && !store.get().stage.webgl.enabled
+      ? el('p', { class: 'hint', text: 'Nothing is painted behind the wheel: the component takes whatever background the page it sits on has.' })
+      : null,
     st.bgType === 'gradient' ? row([colorField('From', acc('gradFrom')), colorField('To', acc('gradTo'))]) : null,
     st.bgType === 'gradient' ? numberField('Gradient angle', acc('gradAngle'), { min: 0, max: 360, step: 5 }) : null,
     st.bgType !== 'gradient' ? colorField('Color', acc('bgColor')) : null,

@@ -285,12 +285,16 @@ export function componentCss(project, opts = {}) {
   const scale = innerW / 390; // screens are authored at a 390px logical width
   const logicalH = Math.round(innerH / scale);
 
+  // 'none' paints nothing at all, so the component sits on whatever the host
+  // page has behind it — and exports over transparency.
   const stageBg =
-    st.bgType === 'image' && st.bgImage
-      ? `url("${st.bgImage}") center/cover no-repeat, ${st.bgColor}`
-      : st.bgType === 'gradient'
-        ? `linear-gradient(${num(st.gradAngle, 155)}deg, ${st.gradFrom}, ${st.gradTo})`
-        : st.bgColor;
+    st.bgType === 'none'
+      ? 'transparent'
+      : st.bgType === 'image' && st.bgImage
+        ? `url("${st.bgImage}") center/cover no-repeat, ${st.bgColor}`
+        : st.bgType === 'gradient'
+          ? `linear-gradient(${num(st.gradAngle, 155)}deg, ${st.gradFrom}, ${st.gradTo})`
+          : st.bgColor;
 
   const deviceShadow = d.shadow
     ? `box-shadow: 0 30px 70px -20px ${rgba(d.shadowColor, num(d.shadowOpacity, 0.35))}, 0 8px 24px ${rgba(d.shadowColor, num(d.shadowOpacity, 0.35) * 0.5)};`

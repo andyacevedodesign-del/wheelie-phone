@@ -42,6 +42,10 @@ snippet you paste into any page.
     screen stays live, selectable, accessible DOM instead of a baked texture.
   - **CSS 3D transforms** — the lightweight option, and the automatic fallback
     if three.js can't load.
+- **Background, or none at all** — the stage takes a gradient, a solid colour, an
+  image, or **None**, which paints nothing: the component sits on whatever the
+  host page has behind it and exports over transparency. The builder's
+  *Checkerboard* page background makes that easy to check.
 - **A WebGL shader backdrop** — an animated mesh-gradient (or aurora) written in
   raw GLSL, no library. Four colour blobs drift behind the wheel and can lean
   with the spin. Falls back to the CSS gradient if the browser gives no context.
